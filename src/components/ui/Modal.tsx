@@ -15,9 +15,9 @@ interface ModalProps {
 }
 
 const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
-  sm: 'max-w-sm',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
+  sm: 'max-w-md',
+  md: 'max-w-2xl',
+  lg: 'max-w-4xl',
 };
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
