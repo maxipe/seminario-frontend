@@ -1,0 +1,40 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap");
+
+@theme {
+  /* Brand colors */
+  --color-brand-purple: #3B1F6A;
+  --color-brand-purple-light: #4A2D8A;
+  --color-brand-teal: #00C9A7;
+  --color-brand-teal-dark: #00A88C;
+
+  /* Surface colors */
+  --color-surface: #F8F7FA;
+  --color-surface-card: #FFFFFF;
+
+  /* Ink colors */
+  --color-ink: #1A1A2E;
+  --color-ink-muted: #6B7280;
+  --color-ink-faint: #D1D5DB;
+
+  /* Status colors */
+  --color-status-open: #00C9A7;
+  --color-status-urgent: #F59E0B;
+  --color-status-confirmed: #10B981;
+  --color-status-cancelled: #EF4444;
+
+  /* Font families */
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
