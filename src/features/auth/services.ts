@@ -1,57 +1,81 @@
 /**
  * Servicios de autenticación de MiniMax.
- * Persiste usuarios en localStorage — sin backend, sin seguridad real (MVP).
+ * Se comunican con la API REST del backend (NestJS).
  */
 
-import { findUserByEmail, saveUser, setCurrentUser, clearCurrentUser } from '../../lib/localStorage';
+import apiClient, { saveToken, clearToken } from '../../lib/apiClient';
 import type { User } from '../../types';
 import type { LoginCredentials, RegisterData, AuthResponse } from './types';
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
- * Autentica un usuario buscándolo en localStorage por email y verificando password.
- * @throws Error si el email no existe o la contraseña es incorrecta.
+ * Autentica un usuario contra la API y persiste el token JWT.
+ * @throws Error con el mensaje del servidor si las credenciales son incorrectas.
  */
 export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
-  await delay(400);
-  const user = findUserByEmail(credentials.email);
-  if (!user) throw new Error('No existe una cuenta con ese email.');
-  if (user.password !== credentials.password) throw new Error('Contraseña incorrecta.');
-  setCurrentUser(user);
-  return { user, token: 'local-session' };
+  try {
+    const { data } = await apiClient.post<AuthResponse>('/auth/login', credentials);
+    saveToken(data.token);
+    return data;
+  } catch (error: unknown) {
+    throw extractError(error, 'Error al iniciar sesión.');
+  }
 }
 
 /**
- * Registra un nuevo usuario en localStorage.
- * @throws Error si ya existe una cuenta con ese email.
+ * Registra un nuevo usuario en la API y persiste el token JWT.
+ * @throws Error con el mensaje del servidor si el email ya está en uso.
  */
 export async function register(data: RegisterData): Promise<AuthResponse> {
-  await delay(600);
-  if (findUserByEmail(data.email)) {
-    throw new Error('Ya existe una cuenta con ese email.');
+  try {
+    const { data: response } = await apiClient.post<AuthResponse>('/auth/register', data);
+    saveToken(response.token);
+    return response;
+  } catch (error: unknown) {
+    throw extractError(error, 'Error al registrarse.');
   }
-  const user: User = {
-    id: crypto.randomUUID(),
-    name: data.name,
-    email: data.email,
-    password: data.password,
-    role: data.role,
-    storeName: data.storeName,
-    companyName: data.companyName,
-    avatarUrl: undefined,
-    createdAt: new Date().toISOString(),
-  };
-  saveUser(user);
-  setCurrentUser(user);
-  return { user, token: 'local-session' };
 }
 
 /**
- * Cierra la sesión del usuario actual.
+ * Obtiene el perfil del usuario autenticado usando el token JWT almacenado.
+ * @throws Error si el token es inválido o expiró.
+ */
+export async function getMe(): Promise<User> {
+  const { data } = await apiClient.get<User>('/auth/me');
+  return data;
+}
+
+/**
+ * Solicita el envío de un enlace para restablecer la contraseña.
+ * No lanza error si el email no existe (por seguridad anti-enumeración).
+ */
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>('/auth/forgot-password', { email });
+  return data;
+}
+
+/**
+ * Restablece la contraseña utilizando el token provisto por email.
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>('/auth/reset-password', { token, newPassword });
+  return data;
+}
+
+/**
+ * Cierra la sesión eliminando el token del almacenamiento local.
  */
 export async function logout(): Promise<void> {
-  clearCurrentUser();
+  clearToken();
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Extrae el mensaje de error legible de la respuesta de Axios. */
+function extractError(error: unknown, fallback: string): Error {
+  const axiosError = error as { response?: { data?: { message?: string | string[] } } };
+  const msg = axiosError?.response?.data?.message;
+
+  if (Array.isArray(msg)) return new Error(msg[0]);
+  if (typeof msg === 'string') return new Error(msg);
+  return new Error(fallback);
 }

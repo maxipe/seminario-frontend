@@ -1,6 +1,6 @@
 /**
- * Dashboard del proveedor. Muestra stats de sus grupos, el listado y un formulario
- * para publicar nuevos grupos de compra.
+ * Dashboard del proveedor. Muestra stats de sus oportunidades, el listado y un formulario
+ * para publicar nuevas oportunidades de compra grupal.
  * Protegida por ProtectedRoute + verificación de rol (buyers son redirigidos a /mi-cuenta).
  */
 
@@ -8,16 +8,14 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
-import {
-  getGroups as getStoredGroups,
-  saveGroup,
-} from '../lib/localStorage';
+import { getGroups, createOpportunity } from '../features/groups/services';
 import type { Group } from '../types';
 import Avatar from '../components/ui/Avatar';
 import Badge from '../components/ui/Badge';
 import ProgressBar from '../components/ui/ProgressBar';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
+import Spinner from '../components/ui/Spinner';
 import Toast from '../components/ui/Toast';
 import { useToast } from '../hooks/useToast';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -99,13 +97,10 @@ function SupplierGroupCard({ group }: { group: Group }) {
 // ─── Publish form ──────────────────────────────────────────────────────────────
 
 interface PublishGroupFormProps {
-  supplierEmail: string;
-  supplierId: string;
-  supplierName: string;
   onPublished: (group: Group) => void;
 }
 
-function PublishGroupForm({ supplierEmail, supplierId, supplierName, onPublished }: PublishGroupFormProps) {
+function PublishGroupForm({ onPublished }: PublishGroupFormProps) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState('');
@@ -144,43 +139,28 @@ function PublishGroupForm({ supplierEmail, supplierId, supplierName, onPublished
     setSubmitting(true);
     setServerError('');
     try {
-      await new Promise((r) => setTimeout(r, 600));
-      const id = crypto.randomUUID();
       const pvp = Number(unitPrice);
       const wholesale = Number(wholesalePrice);
       const minUnits = Number(minimumUnits);
 
-      const group: Group = {
-        id,
+      const group = await createOpportunity({
         title: title.trim(),
         description: description.trim(),
-        imageUrl: `https://picsum.photos/seed/${id}/800/500`,
+        imageUrl: `https://picsum.photos/seed/${crypto.randomUUID()}/800/500`,
         category,
         unitPrice: pvp,
         wholesalePrice: wholesale,
         discountPercentage: Math.round((1 - wholesale / pvp) * 100),
         minimumUnits: minUnits,
-        committedUnits: 0,
-        progressPercent: 0,
-        remainingUnits: minUnits,
         expiresAt: new Date(Date.now() + days * 86400000).toISOString(),
-        activeMembers: 0,
-        status: 'open',
-        supplierEmail,
-        supplier: {
-          id: supplierId,
-          name: supplierName,
-          description: '',
-          origin: origin.trim(),
-          catalogUrl: catalogUrl.trim() || undefined,
-        },
         tags: [category],
-      };
+        supplierOrigin: origin.trim(),
+        supplierCatalogUrl: catalogUrl.trim() || undefined,
+      });
 
-      saveGroup(group);
       onPublished(group);
 
-      // Reset form
+      // Resetear formulario
       setTitle('');
       setCategory(CATEGORIES[0]);
       setDescription('');
@@ -191,8 +171,9 @@ function PublishGroupForm({ supplierEmail, supplierId, supplierName, onPublished
       setOrigin('');
       setCatalogUrl('');
       setErrors({});
-    } catch {
-      setServerError('Ocurrió un error al publicar el grupo. Intentá de nuevo.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Ocurrió un error al publicar el grupo. Intentá de nuevo.';
+      setServerError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -347,6 +328,7 @@ export default function SupplierDashboardPage() {
   const navigate = useNavigate();
   const { toast, showToast } = useToast();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
@@ -355,8 +337,13 @@ export default function SupplierDashboardPage() {
       navigate('/mi-cuenta', { replace: true });
       return;
     }
-    const all = getStoredGroups();
-    setGroups(all.filter((g) => g.supplierEmail === user.email));
+
+    // Cargamos las oportunidades del proveedor desde la API
+    setLoading(true);
+    getGroups({ supplierId: user.id })
+      .then((data) => setGroups(data))
+      .catch(() => showToast('Error al cargar tus grupos.', 'error'))
+      .finally(() => setLoading(false));
   }, [user, navigate]);
 
   if (!user || user.role !== 'supplier') return null;
@@ -429,7 +416,13 @@ export default function SupplierDashboardPage() {
           </Button>
         </div>
 
-        {groups.length === 0 && !showForm && (
+        {loading && (
+          <div className="flex justify-center py-12">
+            <Spinner size="lg" />
+          </div>
+        )}
+
+        {!loading && groups.length === 0 && !showForm && (
           <EmptyState
             icon={
               <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
@@ -446,7 +439,7 @@ export default function SupplierDashboardPage() {
           />
         )}
 
-        {groups.length > 0 && (
+        {!loading && groups.length > 0 && (
           <div className="flex flex-col gap-3">
             {groups.map((g) => (
               <SupplierGroupCard key={g.id} group={g} />
@@ -460,9 +453,6 @@ export default function SupplierDashboardPage() {
         <section className="border border-ink-faint/30 rounded-2xl bg-white p-6">
           <h3 className="font-display font-bold text-ink text-lg mb-5">Publicar Nuevo Grupo</h3>
           <PublishGroupForm
-            supplierEmail={user.email}
-            supplierId={user.id}
-            supplierName={user.companyName ?? user.name}
             onPublished={handlePublished}
           />
         </section>

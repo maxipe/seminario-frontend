@@ -23,7 +23,7 @@ import AuthModal from '../features/auth/components/AuthModal';
 import JoinGroupModal from '../features/checkout/components/JoinGroupModal';
 import { formatCurrency } from '../utils/formatCurrency';
 import { useAuth } from '../context/AuthContext';
-import { getCommitmentsByUser } from '../lib/localStorage';
+import { getMyAdhesions } from '../features/checkout/services';
 import type { Group, UserCommitment } from '../types';
 
 // ─── Mock member avatars for social proof ────────────────────────────────────
@@ -425,12 +425,26 @@ export default function GroupDetailPage() {
   const { user, isAuthenticated } = useAuth();
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [commitment, setCommitment] = useState<UserCommitment | null>(null);
 
-  // Find existing commitment for this group (buyers only, ignore cancelled)
-  const commitment: UserCommitment | null =
-    isAuthenticated && user?.role === 'buyer' && group
-      ? (getCommitmentsByUser(user.email).find((c) => c.groupId === group.id && c.status !== 'cancelled') ?? null)
-      : null;
+  // Cargamos la adhesión del usuario para esta oportunidad desde la API
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'buyer' || !group) {
+      setCommitment(null);
+      return;
+    }
+
+    getMyAdhesions()
+      .then((adhesions) => {
+        const active = adhesions.find(
+          (a) => a.opportunityId === group.id && a.status !== 'cancelled',
+        );
+        setCommitment(active ?? null);
+      })
+      .catch(() => {
+        setCommitment(null);
+      });
+  }, [isAuthenticated, user?.role, group?.id]);
 
   useEffect(() => {
     if (group) {
@@ -495,7 +509,7 @@ export default function GroupDetailPage() {
 
             {/* Attribute pills */}
             <div className="flex flex-wrap gap-2">
-              <AttributePill icon="🌍" label={group.supplier.origin} />
+              <AttributePill icon="🌍" label={group.supplierOrigin} />
               <AttributePill icon="📉" label={`${group.discountPercentage}% de descuento grupal`} />
               {group.remainingUnits > 0 && (
                 <AttributePill icon="📦" label={`${group.remainingUnits} unidades disponibles`} />
@@ -509,12 +523,12 @@ export default function GroupDetailPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <SupplierCard
-                  title={group.supplier.name}
-                  body={group.supplier.description}
+                  title={group.supplier?.companyName ?? group.supplier?.name ?? 'Proveedor'}
+                  body={`Origen: ${group.supplierOrigin}`}
                   footer={
-                    group.supplier.catalogUrl ? (
+                    group.supplierCatalogUrl ? (
                       <a
-                        href={group.supplier.catalogUrl}
+                        href={group.supplierCatalogUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-display font-bold text-xs text-brand-teal hover:underline tracking-widest uppercase"

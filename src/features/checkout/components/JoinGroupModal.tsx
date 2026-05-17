@@ -1,7 +1,7 @@
 /**
  * Wizard de 3 pasos para unirse a un grupo de compra.
  * Paso 1: seleccionar cantidad y ver el total a pagar.
- * Paso 2: confirmar — llama a joinGroup() que persiste en localStorage.
+ * Paso 2: confirmar — llama a joinGroup() que crea la adhesión via API.
  * Paso 3: éxito — compra confirmada.
  */
 
@@ -60,7 +60,7 @@ export default function JoinGroupModal({ isOpen, onClose, group, existingQuantit
     setConfirming(true);
     setConfirmError('');
     try {
-      await joinGroup(user.email, group.id, quantity);
+      await joinGroup(group.id, quantity);
       setStep(3);
     } catch (err) {
       setConfirmError(err instanceof Error ? err.message : 'Ocurrió un error. Intentá de nuevo.');

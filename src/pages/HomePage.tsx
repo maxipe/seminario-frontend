@@ -9,7 +9,6 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'rea
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import AvatarGroup from '../components/ui/AvatarGroup';
-import { mockGroups } from '../lib/mocks/groups.mock';
 import GroupCard from '../features/groups/components/GroupCard';
 import CTASection from '../components/layout/CTASection';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -75,7 +74,59 @@ const SOCIAL_PROOF_USERS = [
   { alt: 'Ana P.', src: 'https://i.pravatar.cc/150?img=9' },
 ];
 
-const FEATURED_GROUPS = mockGroups.filter((g) => g.status === 'open').slice(0, 3);
+const FEATURED_GROUPS = [
+  {
+    id: 'demo-1',
+    title: 'Aceite de Oliva Extra Virgen',
+    description: 'Aceite de oliva extra virgen de primera presión en frío. Origen: Mendoza.',
+    imageUrl: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80',
+    category: 'alimentos',
+    unitPrice: 4800,
+    wholesalePrice: 3200,
+    discountPercentage: 33,
+    minimumUnits: 200,
+    committedUnits: 164,
+    activeMembers: 34,
+    status: 'open',
+    expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    tags: ['aceite', 'oliva', 'mendoza'],
+    supplier: { name: 'Finca Dorada S.A.' },
+  },
+  {
+    id: 'demo-2',
+    title: 'Auriculares Inalámbricos Pro',
+    description: 'Auriculares TWS con cancelación de ruido activa.',
+    imageUrl: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80',
+    category: 'tecnologia',
+    unitPrice: 35000,
+    wholesalePrice: 21000,
+    discountPercentage: 40,
+    minimumUnits: 50,
+    committedUnits: 42,
+    activeMembers: 12,
+    status: 'open',
+    expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    tags: ['tecnologia', 'audio'],
+    supplier: { name: 'ElectroTech Importaciones' },
+  },
+  {
+    id: 'demo-3',
+    title: 'Juego de Sábanas 400 Hilos',
+    description: 'Sábanas 100% algodón, calidad hotelera.',
+    imageUrl: 'https://images.unsplash.com/photo-1522771730841-5fa04c5bc497?auto=format&fit=crop&q=80',
+    category: 'hogar',
+    unitPrice: 45000,
+    wholesalePrice: 28000,
+    discountPercentage: 38,
+    minimumUnits: 100,
+    committedUnits: 30,
+    activeMembers: 8,
+    status: 'open',
+    expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+    tags: ['hogar', 'blanco'],
+    supplier: { name: 'Textil Premium S.A.' },
+  }
+] as any;
 
 // ─── Step card ────────────────────────────────────────────────────────────────
 

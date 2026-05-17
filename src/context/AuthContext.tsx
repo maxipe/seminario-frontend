@@ -1,13 +1,14 @@
 /**
  * Contexto de autenticación de MiniMax.
- * Persiste la sesión en localStorage a través de la capa lib/localStorage.ts.
+ * Persiste la sesión mediante JWT almacenado en localStorage.
+ * Al montar, intenta restaurar la sesión llamando a GET /auth/me.
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User } from '../types';
 import type { LoginCredentials, RegisterData } from '../features/auth/types';
 import * as authService from '../features/auth/services';
-import { getCurrentUser } from '../lib/localStorage';
+import { getToken } from '../lib/apiClient';
 
 interface AuthContextValue {
   user: User | null;
@@ -26,38 +27,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Al montar, intentamos restaurar la sesión con el token existente
   useEffect(() => {
-    const stored = getCurrentUser();
-    if (stored) {
-      setUser(stored);
-      setToken('local-session');
+    const storedToken = getToken();
+    if (!storedToken) {
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
+
+    setToken(storedToken);
+
+    authService.getMe()
+      .then((userData) => {
+        setUser(userData);
+      })
+      .catch(() => {
+        // Token inválido o expirado, limpiamos la sesión
+        authService.logout();
+        setToken(null);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
-
-  function persist(u: User) {
-    setUser(u);
-    setToken('local-session');
-  }
-
-  function clear() {
-    setUser(null);
-    setToken(null);
-  }
 
   async function login(credentials: LoginCredentials): Promise<void> {
     const response = await authService.login(credentials);
-    persist(response.user);
+    setUser(response.user);
+    setToken(response.token);
   }
 
   async function register(data: RegisterData): Promise<void> {
     const response = await authService.register(data);
-    persist(response.user);
+    setUser(response.user);
+    setToken(response.token);
   }
 
   async function logout(): Promise<void> {
     await authService.logout();
-    clear();
+    setUser(null);
+    setToken(null);
   }
 
   return (

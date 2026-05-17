@@ -5,17 +5,36 @@
  */
 
 import { useState } from 'react';
-import { mockGroups } from '../lib/mocks/groups.mock';
 import GroupCard from '../features/groups/components/GroupCard';
 import CTASection from '../components/layout/CTASection';
 import AuthModal from '../features/auth/components/AuthModal';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { formatCurrency } from '../utils/formatCurrency';
 import { useAuth } from '../context/AuthContext';
+// ─── Mock data para ilustración ───────────────────────────────────────────────────
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const DEMO_GROUP = mockGroups[0];
+const DEMO_GROUP = {
+  id: 'demo-group-1',
+  title: 'Aceite de Oliva Extra Virgen — Mendoza',
+  description: 'Aceite de oliva extra virgen de primera presión en frío. Acidez libre menor a 0.5%. Origen: Luján de Cuyo, Mendoza.',
+  imageUrl: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80',
+  category: 'alimentos',
+  unitPrice: 4800,
+  wholesalePrice: 3200,
+  discountPercentage: 33,
+  minimumUnits: 200,
+  committedUnits: 164,
+  activeMembers: 34,
+  status: 'open',
+  expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+  tags: ['aceite', 'oliva', 'mendoza'],
+  supplier: {
+    id: 'supplier-demo',
+    name: 'Finca Dorada S.A.',
+    rating: 4.8,
+    isVerified: true,
+  },
+} as any;
 
 // ─── FAQ item ─────────────────────────────────────────────────────────────────
 

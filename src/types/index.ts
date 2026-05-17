@@ -1,18 +1,33 @@
 /**
- * Global domain types for MiniMax — shared across all features.
- * These model the core entities: suppliers, buying groups, user commitments, and users.
+ * Tipos globales del dominio de MiniMax — compartidos entre todas las features.
+ * Modelan las entidades principales: proveedores, oportunidades de compra grupal,
+ * adhesiones de usuarios y usuarios.
+ *
+ * NOTA: Estos tipos reflejan las respuestas de la API del backend (NestJS).
  */
 
 export type UserRole = 'buyer' | 'supplier';
 
-export interface Supplier {
+/**
+ * Datos del proveedor incluidos en la respuesta de la oportunidad.
+ * Es un subconjunto del User entity del backend (sin password/resetToken).
+ */
+export interface SupplierInfo {
   id: string;
   name: string;
-  description: string;
-  origin: string;
-  catalogUrl?: string;
+  email: string;
+  role: UserRole;
+  companyName?: string | null;
+  storeName?: string | null;
+  avatarUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
+/**
+ * Oportunidad de compra grupal (en la API se llama "Opportunity").
+ * El frontend mantiene el alias "Group" por retrocompatibilidad con los componentes.
+ */
 export interface Group {
   id: string;
   title: string;
@@ -29,30 +44,39 @@ export interface Group {
   expiresAt: string; // ISO string
   activeMembers: number;
   status: 'open' | 'confirmed' | 'cancelled';
-  supplier: Supplier;
-  supplierEmail?: string; // FK al usuario proveedor que lo creó
-  tags?: string[];
+  supplierId: string;
+  supplierOrigin: string;
+  supplierCatalogUrl?: string | null;
+  supplier?: SupplierInfo;
+  tags?: string[] | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
+/**
+ * Adhesión del usuario a una oportunidad (en la API se llama "Adhesion").
+ * El frontend mantiene el alias "UserCommitment" por retrocompatibilidad con los componentes.
+ */
 export interface UserCommitment {
   id: string;
-  userEmail: string; // FK al usuario comprador
-  groupId: string;
+  userId: string;
+  opportunityId: string;
   quantity: number;
   totalAmount: number;
   status: 'pending' | 'confirmed' | 'cancelled';
   createdAt: string; // ISO string
-  cancellationReason?: 'user' | 'group_expired';
+  cancellationReason?: 'user' | 'opportunity_expired';
+  /** Oportunidad asociada, incluida cuando la API devuelve relaciones */
+  opportunity?: Group;
 }
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  password: string; // plano, MVP sin seguridad
   role: UserRole;
-  storeName?: string;    // buyers: nombre de su tienda
-  companyName?: string;  // suppliers: nombre de su empresa
-  avatarUrl?: string;
+  storeName?: string | null;    // buyers: nombre de su tienda
+  companyName?: string | null;  // suppliers: nombre de su empresa
+  avatarUrl?: string | null;
   createdAt: string; // ISO string
 }

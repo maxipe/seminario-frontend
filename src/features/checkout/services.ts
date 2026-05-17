@@ -1,130 +1,75 @@
 /**
- * Servicios de checkout de MiniMax.
- * Registra la participación de un usuario en un grupo y actualiza el estado del grupo en localStorage.
+ * Servicios de checkout (adhesiones) de MiniMax.
+ * Se comunican con la API REST del backend para gestionar la
+ * participación de compradores en oportunidades de compra grupal.
  */
 
-import {
-  findGroupById,
-  updateGroup,
-  saveCommitment,
-  getCommitments,
-  getCommitmentsByUser,
-  updateCommitment,
-} from '../../lib/localStorage';
+import apiClient from '../../lib/apiClient';
 import type { UserCommitment } from '../../types';
 
-/**
- * Une a un usuario a un grupo de compra, o suma unidades si ya participaba.
- * Actualiza committedUnits, progressPercent y remainingUnits del grupo.
- * Si se alcanza el mínimo, confirma el grupo y todos sus compromisos.
- *
- * @throws Error si el grupo no existe.
- */
-export async function joinGroup(
-  userEmail: string,
-  groupId: string,
-  quantity: number,
-): Promise<UserCommitment> {
-  await new Promise((r) => setTimeout(r, 1200));
-
-  const group = findGroupById(groupId);
-  if (!group) throw new Error('El grupo no existe o ya no está disponible.');
-
-  const existing = getCommitmentsByUser(userEmail)
-    .find((c) => c.groupId === groupId && c.status !== 'cancelled');
-
-  const newCommittedUnits = group.committedUnits + quantity;
-  const newProgressPercent = Math.min(
-    100,
-    Math.round((newCommittedUnits / group.minimumUnits) * 100),
-  );
-  const newRemainingUnits = Math.max(0, group.minimumUnits - newCommittedUnits);
-  const reached = newCommittedUnits >= group.minimumUnits;
-
-  updateGroup({
-    ...group,
-    committedUnits: newCommittedUnits,
-    progressPercent: newProgressPercent,
-    remainingUnits: newRemainingUnits,
-    // activeMembers solo sube si es un miembro nuevo, no si suma más unidades
-    activeMembers: existing ? group.activeMembers : group.activeMembers + 1,
-    status: reached ? 'confirmed' : group.status,
-  });
-
-  if (existing) {
-    const updated: UserCommitment = {
-      ...existing,
-      quantity: existing.quantity + quantity,
-      totalAmount: group.wholesalePrice * (existing.quantity + quantity),
-    };
-    updateCommitment(updated);
-
-    if (reached) {
-      const allCommitments = getCommitments().filter((c) => c.groupId === groupId);
-      for (const c of allCommitments) {
-        updateCommitment({ ...c, status: 'confirmed' });
-      }
-      return { ...updated, status: 'confirmed' };
-    }
-
-    return updated;
-  }
-
-  const totalAmount = group.wholesalePrice * quantity;
-  const commitment: UserCommitment = {
-    id: crypto.randomUUID(),
-    userEmail,
-    groupId,
-    quantity,
-    totalAmount,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-  };
-
-  saveCommitment(commitment);
-
-  if (reached) {
-    const allCommitments = getCommitments().filter((c) => c.groupId === groupId);
-    for (const c of allCommitments) {
-      updateCommitment({ ...c, status: 'confirmed' });
-    }
-    return { ...commitment, status: 'confirmed' };
-  }
-
-  return commitment;
+/** Respuesta del endpoint de creación de adhesión. */
+interface JoinResponse {
+  adhesion: UserCommitment;
+  opportunity: unknown;
 }
 
 /**
- * Cancela un compromiso pendiente y devuelve las unidades al grupo.
- * Solo se puede cancelar si el compromiso está en estado 'pending'.
+ * Une al usuario autenticado a una oportunidad de compra.
+ * El backend identifica al usuario por el JWT.
  *
- * @throws Error si el compromiso no existe o ya no está en estado pending.
+ * @param opportunityId - ID de la oportunidad a la que adherirse.
+ * @param quantity - Cantidad de unidades a reservar.
+ * @param paymentMethod - Método de pago (simulado en MVP).
  */
-export async function cancelCommitment(commitmentId: string): Promise<UserCommitment> {
-  await new Promise((r) => setTimeout(r, 800));
-
-  const all = getCommitments();
-  const commitment = all.find((c) => c.id === commitmentId);
-  if (!commitment) throw new Error('Compromiso no encontrado.');
-  if (commitment.status !== 'pending') throw new Error('Este compromiso ya no puede cancelarse.');
-
-  const cancelled: UserCommitment = {
-    ...commitment,
-    status: 'cancelled',
-    cancellationReason: 'user',
-  };
-  updateCommitment(cancelled);
-
-  const group = findGroupById(commitment.groupId);
-  if (group && group.status === 'open') {
-    const newCommittedUnits = Math.max(0, group.committedUnits - commitment.quantity);
-    updateGroup({
-      ...group,
-      committedUnits: newCommittedUnits,
-      progressPercent: Math.min(100, Math.round((newCommittedUnits / group.minimumUnits) * 100)),
-      remainingUnits: Math.max(0, group.minimumUnits - newCommittedUnits),
+export async function joinGroup(
+  opportunityId: string,
+  quantity: number,
+  paymentMethod: string = 'card',
+): Promise<UserCommitment> {
+  try {
+    const { data } = await apiClient.post<JoinResponse>('/adhesions', {
+      opportunityId,
+      quantity,
+      paymentMethod,
     });
+    return data.adhesion;
+  } catch (error: unknown) {
+    throw extractError(error, 'Error al unirse a la oportunidad.');
   }
+}
 
-  return cancelled;
+/**
+ * Obtiene todas las adhesiones del usuario autenticado,
+ * enriquecidas con los datos de la oportunidad asociada.
+ */
+export async function getMyAdhesions(): Promise<UserCommitment[]> {
+  const { data } = await apiClient.get<UserCommitment[]>('/adhesions/my');
+  return data;
+}
+
+/**
+ * Cancela una adhesión pendiente del usuario autenticado.
+ * El backend devuelve las unidades a la oportunidad y notifica al proveedor.
+ *
+ * @param adhesionId - ID de la adhesión a cancelar.
+ */
+export async function cancelCommitment(adhesionId: string): Promise<{ message: string }> {
+  try {
+    const { data } = await apiClient.patch<{ message: string }>(`/adhesions/${adhesionId}/cancel`);
+    return data;
+  } catch (error: unknown) {
+    throw extractError(error, 'Error al cancelar la adhesión.');
+  }
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Extrae el mensaje de error legible de la respuesta de Axios. */
+function extractError(error: unknown, fallback: string): Error {
+  const axiosError = error as { response?: { data?: { message?: string | string[] } } };
+  const msg = axiosError?.response?.data?.message;
+
+  if (Array.isArray(msg)) return new Error(msg[0]);
+  if (typeof msg === 'string') return new Error(msg);
+  return new Error(fallback);
 }
