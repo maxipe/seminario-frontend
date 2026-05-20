@@ -8,7 +8,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
-import { getGroups, createOpportunity } from '../features/groups/services';
+import { getGroups, createOpportunity, uploadOpportunityImage } from '../features/groups/services';
 import type { Group } from '../types';
 import Avatar from '../components/ui/Avatar';
 import Badge from '../components/ui/Badge';
@@ -110,6 +110,8 @@ function PublishGroupForm({ onPublished }: PublishGroupFormProps) {
   const [days, setDays] = useState(7);
   const [origin, setOrigin] = useState('');
   const [catalogUrl, setCatalogUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState('');
@@ -127,6 +129,7 @@ function PublishGroupForm({ onPublished }: PublishGroupFormProps) {
     if (!minimumUnits || isNaN(Number(minimumUnits)) || Number(minimumUnits) < 1)
       e.minimumUnits = 'Ingresá un mínimo de unidades válido.';
     if (!origin.trim()) e.origin = 'El origen del producto es requerido.';
+    if (!imageFile) e.image = 'La imagen del producto es requerida.';
     return e;
   }
 
@@ -143,10 +146,17 @@ function PublishGroupForm({ onPublished }: PublishGroupFormProps) {
       const wholesale = Number(wholesalePrice);
       const minUnits = Number(minimumUnits);
 
+      // Subir la imagen primero
+      let finalImageUrl = '';
+      if (imageFile) {
+        const uploadResult = await uploadOpportunityImage(imageFile);
+        finalImageUrl = uploadResult.imageUrl;
+      }
+
       const group = await createOpportunity({
         title: title.trim(),
         description: description.trim(),
-        imageUrl: `https://picsum.photos/seed/${crypto.randomUUID()}/800/500`,
+        imageUrl: finalImageUrl,
         category,
         unitPrice: pvp,
         wholesalePrice: wholesale,
@@ -170,6 +180,8 @@ function PublishGroupForm({ onPublished }: PublishGroupFormProps) {
       setDays(7);
       setOrigin('');
       setCatalogUrl('');
+      setImageFile(null);
+      setImagePreview('');
       setErrors({});
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ocurrió un error al publicar el grupo. Intentá de nuevo.';
@@ -208,6 +220,58 @@ function PublishGroupForm({ onPublished }: PublishGroupFormProps) {
           rows={3}
           className={`${inputClass(!!errors.description)} resize-none`}
         />
+      </FormField>
+
+      <FormField label="Imagen del producto" error={errors.image}>
+        <div className="flex flex-col gap-3">
+          {imagePreview && (
+            <div className="relative w-full h-48 rounded-xl overflow-hidden border border-ink-faint/30">
+              <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => {
+                  setImageFile(null);
+                  setImagePreview('');
+                }}
+                className="absolute top-2 right-2 bg-ink/80 hover:bg-ink text-white rounded-full p-1.5 shadow-md transition-colors"
+                title="Eliminar imagen"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+          <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl cursor-pointer p-6 transition-colors ${
+            errors.image ? 'border-status-cancelled hover:bg-status-cancelled/5' : 'border-ink-faint/40 hover:bg-brand-teal/5'
+          }`}>
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <svg className="w-8 h-8 text-ink-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm font-semibold font-display text-ink">
+                {imageFile ? 'Cambiar imagen' : 'Seleccionar imagen'}
+              </span>
+              <span className="text-xs font-body text-ink-muted">PNG, JPG, GIF, WEBP hasta 5MB</span>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setImageFile(file);
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setImagePreview(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+          </label>
+        </div>
       </FormField>
 
       <div className="grid grid-cols-2 gap-4">
@@ -364,7 +428,7 @@ export default function SupplierDashboardPage() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       {/* Profile header */}
       <div className="flex items-center gap-5 mb-10">
-        <Avatar src={user.avatarUrl} alt={user.name} size="lg" />
+        <Avatar src={user.avatarUrl ?? undefined} alt={user.name} size="lg" />
         <div className="min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-display font-extrabold text-2xl text-ink">

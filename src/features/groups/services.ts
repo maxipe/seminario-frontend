@@ -38,6 +38,22 @@ export async function getGroupById(id: string): Promise<Group> {
 }
 
 /**
+ * Sube una imagen para una oportunidad (solo proveedores).
+ * @param file - Archivo de imagen a subir.
+ */
+export async function uploadOpportunityImage(file: File): Promise<{ imageUrl: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const { data } = await apiClient.post<{ imageUrl: string }>('/opportunities/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return data;
+}
+
+/**
  * Crea una nueva oportunidad de compra (solo proveedores).
  */
 export async function createOpportunity(payload: CreateOpportunityPayload): Promise<Group> {

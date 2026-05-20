@@ -47,7 +47,7 @@ export default function GroupCard({ group }: GroupCardProps) {
       {/* Image */}
       <div className="relative h-48 overflow-hidden bg-ink-faint/20">
         <img
-          src={`https://picsum.photos/seed/${group.id}/400/300`}
+          src={group.imageUrl || `https://picsum.photos/seed/${group.id}/400/300`}
           alt={group.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />

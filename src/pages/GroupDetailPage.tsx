@@ -475,11 +475,11 @@ export default function GroupDetailPage() {
           {/* ── Left column ──────────────────────────────────────────────── */}
           <div className="flex-[3] flex flex-col gap-6 min-w-0">
             {/* Product image */}
-            <div className="relative rounded-2xl overflow-hidden shadow-md">
+            <div className="relative rounded-2xl overflow-hidden shadow-md h-80 sm:h-[400px] bg-ink-faint/10">
               <img
-                src={`https://picsum.photos/seed/${group.id}/800/500`}
+                src={group.imageUrl || `https://picsum.photos/seed/${group.id}/800/500`}
                 alt={group.title}
-                className="w-full object-cover"
+                className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-ink/30 to-transparent pointer-events-none" />
               <div className="absolute top-4 left-4 flex gap-2">
