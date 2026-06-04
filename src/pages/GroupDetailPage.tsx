@@ -23,7 +23,7 @@ import AuthModal from '../features/auth/components/AuthModal';
 import JoinGroupModal from '../features/checkout/components/JoinGroupModal';
 import { formatCurrency } from '../utils/formatCurrency';
 import { useAuth } from '../context/AuthContext';
-import { getMyAdhesions } from '../features/checkout/services';
+import { getMyAdhesions, updateAdhesionStatus } from '../features/checkout/services';
 import type { Group, UserCommitment } from '../types';
 
 // ─── Mock member avatars for social proof ────────────────────────────────────
@@ -426,6 +426,19 @@ export default function GroupDetailPage() {
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [commitment, setCommitment] = useState<UserCommitment | null>(null);
+  const [updatingAdhesionId, setUpdatingAdhesionId] = useState<string | null>(null);
+
+  async function handleStatusUpdate(adhesionId: string, status: string) {
+    setUpdatingAdhesionId(adhesionId);
+    try {
+      await updateAdhesionStatus(adhesionId, status);
+      refetch();
+    } catch (err) {
+      console.error('Error updating order status:', err);
+    } finally {
+      setUpdatingAdhesionId(null);
+    }
+  }
 
   // Cargamos la adhesión del usuario para esta oportunidad desde la API
   useEffect(() => {
@@ -558,6 +571,32 @@ export default function GroupDetailPage() {
                 />
               </div>
             </section>
+
+            {/* Supplier Order Management */}
+            {user?.role === 'supplier' && group.supplierId === user.id && group.status === 'confirmed' && (
+              <section className="flex flex-col gap-4 border-t border-ink-faint/30 pt-6">
+                <div>
+                  <h2 className="font-display font-bold text-lg text-ink">Gestión de Pedidos de Compradores</h2>
+                  <p className="font-body text-xs text-ink-muted mt-0.5">
+                    Modificá el estado de los pedidos individuales de los minoristas. Cada cambio les enviará una notificación flotante.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {group.adhesions && group.adhesions.length > 0 ? (
+                    group.adhesions.map((adhesion) => (
+                      <SupplierAdhesionCard
+                        key={adhesion.id}
+                        adhesion={adhesion}
+                        updating={updatingAdhesionId === adhesion.id}
+                        onStatusUpdate={handleStatusUpdate}
+                      />
+                    ))
+                  ) : (
+                    <p className="font-body text-xs text-ink-muted italic">No hay pedidos para este grupo.</p>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* ── Right column (sticky) ────────────────────────────────────── */}
@@ -622,6 +661,75 @@ function SupplierCard({ title, body, footer }: SupplierCardProps) {
       <p className="font-display font-bold text-ink text-sm">{title}</p>
       <p className="font-body text-xs text-ink-muted leading-relaxed flex-1">{body}</p>
       {footer && <div>{footer}</div>}
+    </div>
+  );
+}
+
+function SupplierAdhesionCard({
+  adhesion,
+  updating,
+  onStatusUpdate,
+}: {
+  adhesion: any;
+  updating: boolean;
+  onStatusUpdate: (id: string, status: string) => void;
+}) {
+  const statusLabels: Record<string, string> = {
+    pending: 'Pendiente',
+    confirmed: 'Confirmado',
+    cancelled: 'Cancelado',
+    preparing: 'En preparación',
+    shipped: 'Enviado',
+    delivered: 'Entregado',
+  };
+
+  const statusColors: Record<string, string> = {
+    pending: 'text-status-open bg-status-open/10 border-status-open/20',
+    confirmed: 'text-status-confirmed bg-status-confirmed/10 border-status-confirmed/20',
+    cancelled: 'text-status-cancelled bg-status-cancelled/10 border-status-cancelled/20',
+    preparing: 'text-status-urgent bg-status-urgent/10 border-status-urgent/20',
+    shipped: 'text-brand-purple bg-brand-purple/10 border-brand-purple/20',
+    delivered: 'text-brand-teal bg-brand-teal/10 border-brand-teal/20',
+  };
+
+  const canUpdate = adhesion.status !== 'cancelled' && adhesion.status !== 'pending';
+
+  return (
+    <div className="bg-white border border-ink-faint/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <p className="font-display font-bold text-sm text-ink">
+            {adhesion.user?.storeName || adhesion.user?.name || 'Minorista'}
+          </p>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${statusColors[adhesion.status] || ''}`}>
+            {statusLabels[adhesion.status] || adhesion.status}
+          </span>
+        </div>
+        <p className="font-body text-xs text-ink-muted">
+          Contacto: <span className="text-ink">{adhesion.user?.email}</span>
+        </p>
+        <div className="flex gap-4 text-xs font-body text-ink-muted mt-1">
+          <span>Cant: <span className="font-semibold text-ink">{adhesion.quantity} u.</span></span>
+          <span>Monto: <span className="font-semibold text-ink">{formatCurrency(adhesion.totalAmount)}</span></span>
+        </div>
+      </div>
+
+      {canUpdate && (
+        <div className="flex items-center gap-2 shrink-0">
+          <select
+            value={adhesion.status}
+            disabled={updating}
+            onChange={(e) => onStatusUpdate(adhesion.id, e.target.value)}
+            className="rounded-xl border border-ink-faint/40 bg-white font-body text-xs text-ink py-2 px-3 focus:outline-none focus:ring-2 focus:ring-brand-teal/20"
+          >
+            <option value="confirmed">Confirmado</option>
+            <option value="preparing">En preparación</option>
+            <option value="shipped">Enviado</option>
+            <option value="delivered">Entregado</option>
+          </select>
+          {updating && <span className="w-4 h-4 border-2 border-brand-teal border-t-transparent rounded-full animate-spin shrink-0" />}
+        </div>
+      )}
     </div>
   );
 }

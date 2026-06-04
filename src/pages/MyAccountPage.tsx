@@ -29,22 +29,31 @@ function getStatusText(item: CommitmentWithGroup): string {
       ? 'Cancelaste este pedido. Tu pago fue reintegrado.'
       : 'El grupo no alcanzó el mínimo. Tu pago fue reintegrado.';
   }
-  const map: Record<'pending' | 'confirmed', string> = {
+  const map: Record<string, string> = {
     pending: 'Esperando que el grupo alcance el mínimo...',
     confirmed: '¡Compra confirmada! Coordiná la entrega con el proveedor.',
+    preparing: 'El proveedor está preparando tu pedido.',
+    shipped: '¡Tu pedido ha sido enviado!',
+    delivered: 'Tu pedido ha sido entregado.',
   };
-  return map[item.status];
+  return map[item.status] || 'Estado del pedido actualizado.';
 }
 
-const statusBadgeVariant: Record<CommitmentWithGroup['status'], 'open' | 'confirmed' | 'cancelled'> = {
+const statusBadgeVariant: Record<CommitmentWithGroup['status'], 'open' | 'urgent' | 'confirmed' | 'cancelled'> = {
   pending: 'open',
   confirmed: 'confirmed',
+  preparing: 'urgent',
+  shipped: 'open',
+  delivered: 'confirmed',
   cancelled: 'cancelled',
 };
 
 const statusBadgeLabel: Record<CommitmentWithGroup['status'], string> = {
   pending: 'Pendiente',
   confirmed: 'Confirmada',
+  preparing: 'En preparación',
+  shipped: 'Enviado',
+  delivered: 'Entregado',
   cancelled: 'Cancelada',
 };
 
@@ -230,7 +239,7 @@ export default function MyAccountPage() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       {/* Profile header */}
       <div className="flex items-center gap-5 mb-10">
-        <Avatar src={user.avatarUrl} alt={user.name} size="lg" />
+        <Avatar src={user.avatarUrl ?? undefined} alt={user.name} size="lg" />
         <div className="min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-display font-extrabold text-2xl text-ink">{user.name}</h1>
@@ -338,7 +347,7 @@ export default function MyAccountPage() {
         </div>
       </Modal>
 
-      {toast && <Toast message={toast.message} type={toast.type} />}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => {}} />}
     </div>
   );
 }

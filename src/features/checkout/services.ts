@@ -62,6 +62,21 @@ export async function cancelCommitment(adhesionId: string): Promise<{ message: s
   }
 }
 
+/**
+ * Actualiza el estado de una adhesión (pedido) por parte del proveedor.
+ *
+ * @param adhesionId - ID de la adhesión a actualizar.
+ * @param status - El nuevo estado (confirmed, preparing, shipped, delivered).
+ */
+export async function updateAdhesionStatus(adhesionId: string, status: string): Promise<UserCommitment> {
+  try {
+    const { data } = await apiClient.patch<UserCommitment>(`/adhesions/${adhesionId}/status`, { status });
+    return data;
+  } catch (error: unknown) {
+    throw extractError(error, 'Error al actualizar el estado del pedido.');
+  }
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Extrae el mensaje de error legible de la respuesta de Axios. */

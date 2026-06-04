@@ -49,6 +49,7 @@ export interface Group {
   supplierCatalogUrl?: string | null;
   supplier?: SupplierInfo;
   tags?: string[] | null;
+  adhesions?: UserCommitment[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -63,11 +64,27 @@ export interface UserCommitment {
   opportunityId: string;
   quantity: number;
   totalAmount: number;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'preparing' | 'shipped' | 'delivered';
   createdAt: string; // ISO string
   cancellationReason?: 'user' | 'opportunity_expired';
   /** Oportunidad asociada, incluida cuando la API devuelve relaciones */
   opportunity?: Group;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  metadata?: {
+    opportunityId?: string;
+    adhesionId?: string;
+    status?: string;
+    quantity?: number;
+  } | null;
+  createdAt: string;
 }
 
 export interface User {
@@ -80,3 +97,5 @@ export interface User {
   avatarUrl?: string | null;
   createdAt: string; // ISO string
 }
+
+export type Supplier = SupplierInfo;

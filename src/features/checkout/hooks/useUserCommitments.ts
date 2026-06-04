@@ -60,9 +60,9 @@ export function useUserCommitments(): {
               totalAmount: adhesion.totalAmount,
               status: adhesion.status,
               createdAt: adhesion.createdAt,
-              cancellationReason: adhesion.cancellationReason,
+              cancellationReason: adhesion.cancellationReason || undefined,
               group,
-            } satisfies CommitmentWithGroup;
+            } as CommitmentWithGroup;
           })
           .filter((c): c is CommitmentWithGroup => c !== null);
 

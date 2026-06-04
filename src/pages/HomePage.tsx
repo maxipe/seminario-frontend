@@ -442,7 +442,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {FEATURED_GROUPS.map((group, i) => (
+            {FEATURED_GROUPS.map((group: any, i: number) => (
               <FadeIn key={group.id} delay={i * 100}>
                 <GroupCard group={group} />
               </FadeIn>
