@@ -449,10 +449,22 @@ export default function GroupDetailPage() {
 
     getMyAdhesions()
       .then((adhesions) => {
-        const active = adhesions.find(
+        const active = adhesions.filter(
           (a) => a.opportunityId === group.id && a.status !== 'cancelled',
         );
-        setCommitment(active ?? null);
+        if (active.length === 0) {
+          setCommitment(null);
+          return;
+        }
+        const quantity = active.reduce((sum, a) => sum + a.quantity, 0);
+        const totalAmount = active.reduce((sum, a) => sum + a.totalAmount, 0);
+        const status = active.every((a) => a.status === 'confirmed')
+          ? 'confirmed'
+          : 'pending';
+        const latest = active.reduce((prev, curr) =>
+          new Date(curr.createdAt) > new Date(prev.createdAt) ? curr : prev,
+        );
+        setCommitment({ ...latest, quantity, totalAmount, status });
       })
       .catch(() => {
         setCommitment(null);
