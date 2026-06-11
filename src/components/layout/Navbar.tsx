@@ -60,7 +60,16 @@ function drawerLinkClass({ isActive }: { isActive: boolean }) {
 
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
-  const { notifications, unreadCount, toast, setToast, markNotificationAsRead, markAllNotificationsAsRead } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    toast,
+    setToast,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    clearAllNotifications,
+    deleteNotification,
+  } = useNotifications();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -162,14 +171,24 @@ export default function Navbar() {
                     <div className="absolute right-0 mt-2 w-80 bg-white border border-ink-faint/30 rounded-2xl shadow-xl z-50 p-4 max-h-96 overflow-y-auto flex flex-col gap-2">
                       <div className="flex items-center justify-between border-b border-ink-faint/30 pb-2 mb-1">
                         <span className="font-display font-bold text-sm text-ink">Notificaciones</span>
-                        {unreadCount > 0 && (
-                          <button
-                            onClick={markAllNotificationsAsRead}
-                            className="text-xs font-semibold text-brand-teal hover:text-brand-teal-dark transition-colors"
-                          >
-                            Marcar todas leídas
-                          </button>
-                        )}
+                        <div className="flex gap-2">
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={markAllNotificationsAsRead}
+                              className="text-xs font-semibold text-brand-teal hover:text-brand-teal-dark transition-colors"
+                            >
+                              Marcar leídas
+                            </button>
+                          )}
+                          {notifications.length > 0 && (
+                            <button
+                              onClick={clearAllNotifications}
+                              className="text-xs font-semibold text-status-cancelled hover:text-status-cancelled-dark transition-colors"
+                            >
+                              Limpiar todo
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {notifications.length === 0 ? (
@@ -206,6 +225,18 @@ export default function Navbar() {
                               {!n.isRead && (
                                 <span className="w-1.5 h-1.5 rounded-full bg-brand-teal shrink-0 mt-1.5" />
                               )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(n.id);
+                                }}
+                                className="p-1 text-ink-muted hover:text-status-cancelled hover:bg-ink-faint/10 rounded transition-all shrink-0 self-center"
+                                title="Eliminar"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -299,14 +330,24 @@ export default function Navbar() {
                   <div className="absolute right-[-40px] mt-2 w-72 bg-white border border-ink-faint/30 rounded-2xl shadow-xl z-50 p-3 max-h-80 overflow-y-auto flex flex-col gap-1.5">
                     <div className="flex items-center justify-between border-b border-ink-faint/30 pb-2 mb-1">
                       <span className="font-display font-bold text-xs text-ink">Notificaciones</span>
-                      {unreadCount > 0 && (
-                        <button
-                          onClick={markAllNotificationsAsRead}
-                          className="text-[10px] font-semibold text-brand-teal hover:text-brand-teal-dark transition-colors"
-                        >
-                          Marcar leídas
-                        </button>
-                      )}
+                      <div className="flex gap-2">
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={markAllNotificationsAsRead}
+                            className="text-[10px] font-semibold text-brand-teal hover:text-brand-teal-dark transition-colors"
+                          >
+                            Marcar leídas
+                          </button>
+                        )}
+                        {notifications.length > 0 && (
+                          <button
+                            onClick={clearAllNotifications}
+                            className="text-[10px] font-semibold text-status-cancelled hover:text-status-cancelled-dark transition-colors"
+                          >
+                            Limpiar todo
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {notifications.length === 0 ? (
                       <div className="py-4 text-center text-[10px] font-body text-ink-muted italic">
@@ -334,6 +375,18 @@ export default function Navbar() {
                             {!n.isRead && (
                               <span className="w-1.5 h-1.5 rounded-full bg-brand-teal shrink-0 mt-1" />
                             )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteNotification(n.id);
+                              }}
+                              className="p-0.5 text-ink-muted hover:text-status-cancelled hover:bg-ink-faint/10 rounded transition-all shrink-0 self-center"
+                              title="Eliminar"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
                           </div>
                         ))}
                       </div>

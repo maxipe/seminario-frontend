@@ -16,6 +16,7 @@ import ExplorePage from '../pages/ExplorePage';
 import GroupDetailPage from '../pages/GroupDetailPage';
 import HowItWorksPage from '../pages/HowItWorksPage';
 import SuppliersPage from '../pages/SuppliersPage';
+import SupplierProfilePage from '../pages/SupplierProfilePage';
 import MyAccountPage from '../pages/MyAccountPage';
 import SupplierDashboardPage from '../pages/SupplierDashboardPage';
 import NotFoundPage from '../pages/NotFoundPage';
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
       { path: '/grupos/:id', element: <GroupDetailPage /> },
       { path: '/como-funciona', element: <HowItWorksPage /> },
       { path: '/proveedores', element: <SuppliersPage /> },
+      { path: '/proveedor/perfil/:id', element: <SupplierProfilePage /> },
       {
         path: '/mi-cuenta',
         element: (

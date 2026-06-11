@@ -20,6 +20,8 @@ import EmptyState from '../components/ui/EmptyState';
 import { formatCurrency } from '../utils/formatCurrency';
 import { useToast } from '../hooks/useToast';
 import Toast from '../components/ui/Toast';
+import { getUserReviews } from '../features/reviews/services';
+import ReviewModal from '../features/reviews/components/ReviewModal';
 
 // ─── Commitment status helpers ─────────────────────────────────────────────────
 
@@ -78,10 +80,14 @@ function CommitmentCard({
   item,
   cancelling,
   onCancelClick,
+  hasReviewed,
+  onReviewClick,
 }: {
   item: CommitmentWithGroup;
   cancelling: string | null;
   onCancelClick: (id: string) => void;
+  hasReviewed: boolean;
+  onReviewClick: () => void;
 }) {
   const { group, quantity, totalAmount, status } = item;
   const isOpen = group.status === 'open';
@@ -114,6 +120,17 @@ function CommitmentCard({
               Total pagado: <span className="font-semibold text-ink">{formatCurrency(totalAmount)}</span>
             </span>
           )}
+          {group.supplierId && (
+            <span>
+              Proveedor:{' '}
+              <Link
+                to={`/proveedor/perfil/${group.supplierId}`}
+                className="font-semibold text-brand-purple hover:underline"
+              >
+                {group.supplier?.companyName || group.supplier?.name || 'Ver perfil'}
+              </Link>
+            </span>
+          )}
         </div>
 
         <ProgressBar percent={group.progressPercent} size="sm" />
@@ -140,6 +157,24 @@ function CommitmentCard({
             >
               Cancelar pedido
             </Button>
+          </div>
+        )}
+
+        {status === 'delivered' && (
+          <div className="flex justify-end mt-1">
+            {hasReviewed ? (
+              <span className="text-xs font-semibold text-status-confirmed bg-status-confirmed/10 px-2.5 py-1 rounded-lg">
+                ✓ Compra valorada
+              </span>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={onReviewClick}
+              >
+                Calificar Proveedor
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -219,6 +254,33 @@ export default function MyAccountPage() {
       navigate('/proveedor/dashboard', { replace: true });
     }
   }, [user, navigate]);
+
+  const [reviewedOpportunityIds, setReviewedOpportunityIds] = useState<Set<string>>(new Set());
+  const [reviewOpportunity, setReviewOpportunity] = useState<{ id: string; title: string } | null>(null);
+
+  useEffect(() => {
+    if (!user || user.role === 'supplier') return;
+    
+    getUserReviews(user.id)
+      .then((reviews) => {
+        const ids = new Set(reviews.map((r) => r.opportunityId));
+        setReviewedOpportunityIds(ids);
+      })
+      .catch((err) => {
+        console.error('Error fetching user reviews:', err);
+      });
+  }, [user]);
+
+  function handleReviewSuccess() {
+    if (reviewOpportunity && user) {
+      setReviewedOpportunityIds((prev) => {
+        const next = new Set(prev);
+        next.add(reviewOpportunity.id);
+        return next;
+      });
+      showToast('¡Gracias por calificar al proveedor!', 'success');
+    }
+  }
 
   if (!user || user.role === 'supplier') return null;
 
@@ -300,6 +362,8 @@ export default function MyAccountPage() {
                 item={item}
                 cancelling={cancelling}
                 onCancelClick={(id) => setConfirmCancelId(id)}
+                hasReviewed={reviewedOpportunityIds.has(item.group.id)}
+                onReviewClick={() => setReviewOpportunity({ id: item.group.id, title: item.group.title })}
               />
             ))}
           </div>
@@ -346,6 +410,16 @@ export default function MyAccountPage() {
           </Button>
         </div>
       </Modal>
+
+      {reviewOpportunity && (
+        <ReviewModal
+          isOpen={reviewOpportunity !== null}
+          onClose={() => setReviewOpportunity(null)}
+          opportunityId={reviewOpportunity.id}
+          opportunityTitle={reviewOpportunity.title}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => {}} />}
     </div>

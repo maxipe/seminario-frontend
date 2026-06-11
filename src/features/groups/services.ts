@@ -76,3 +76,17 @@ export interface CreateOpportunityPayload {
   supplierOrigin: string;
   supplierCatalogUrl?: string;
 }
+
+export interface PublicProfile {
+  id: string;
+  name: string;
+  companyName?: string;
+  avatarUrl?: string;
+  role: string;
+  createdAt: string;
+}
+
+export async function getPublicProfile(userId: string): Promise<PublicProfile> {
+  const { data } = await apiClient.get<PublicProfile>(`/users/${userId}/public-profile`);
+  return data;
+}

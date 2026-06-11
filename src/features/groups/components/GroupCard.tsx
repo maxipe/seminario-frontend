@@ -93,17 +93,19 @@ export default function GroupCard({ group }: GroupCardProps) {
         </div>
 
         {/* Time left */}
-        <p
-          className={`text-xs font-body ${
-            isUrgent ? 'text-status-urgent font-semibold' : 'text-ink-muted'
-          }`}
-        >
-          {days > 0
-            ? `${days} día${days !== 1 ? 's' : ''} restante${days !== 1 ? 's' : ''}`
-            : days === 0
-            ? 'Vence hoy'
-            : 'Vencido'}
-        </p>
+        {group.status !== 'confirmed' && (
+          <p
+            className={`text-xs font-body ${
+              isUrgent ? 'text-status-urgent font-semibold' : 'text-ink-muted'
+            }`}
+          >
+            {days > 0
+              ? `${days} día${days !== 1 ? 's' : ''} restante${days !== 1 ? 's' : ''}`
+              : days === 0
+              ? 'Vence hoy'
+              : 'Vencido'}
+          </p>
+        )}
 
         {/* CTA */}
         <div className="mt-auto pt-1">
