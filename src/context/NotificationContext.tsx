@@ -11,6 +11,8 @@ interface NotificationContextValue {
   fetchNotifications: () => Promise<void>;
   markNotificationAsRead: (id: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -65,6 +67,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function clearAllNotifications() {
+    try {
+      await notificationService.clearAll();
+      setNotifications([]);
+    } catch (err) {
+      console.error('Error clearing all notifications:', err);
+    }
+  }
+
+  async function deleteNotification(id: string) {
+    try {
+      await notificationService.deleteOne(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  }
+
   // Sondeo (polling) cada 10 segundos
   useEffect(() => {
     if (!isAuthenticated) {
@@ -93,6 +113,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         fetchNotifications,
         markNotificationAsRead,
         markAllNotificationsAsRead,
+        clearAllNotifications,
+        deleteNotification,
       }}
     >
       {children}

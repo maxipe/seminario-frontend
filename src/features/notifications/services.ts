@@ -18,3 +18,15 @@ export async function markAllAsRead(): Promise<{ message: string }> {
   const { data } = await apiClient.patch<{ message: string }>('/notifications/read-all');
   return data;
 }
+
+/** Elimina todas las notificaciones del usuario */
+export async function clearAll(): Promise<{ message: string }> {
+  const { data } = await apiClient.delete<{ message: string }>('/notifications');
+  return data;
+}
+
+/** Elimina una notificación específica */
+export async function deleteOne(id: string): Promise<{ message: string }> {
+  const { data } = await apiClient.delete<{ message: string }>(`/notifications/${id}`);
+  return data;
+}

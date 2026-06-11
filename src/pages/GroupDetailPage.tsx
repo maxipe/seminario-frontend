@@ -25,6 +25,8 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { useAuth } from '../context/AuthContext';
 import { getMyAdhesions, updateAdhesionStatus } from '../features/checkout/services';
 import type { Group, UserCommitment } from '../types';
+import { getOpportunityReviews, getUserReviews, type Review } from '../features/reviews/services';
+import ReviewModal from '../features/reviews/components/ReviewModal';
 
 // ─── Mock member avatars for social proof ────────────────────────────────────
 
@@ -144,24 +146,30 @@ function AlreadyJoined({
   commitment,
   group,
   onAddMore,
+  hasReviewed,
+  onReviewClick,
 }: {
   commitment: UserCommitment;
   group: Group;
   onAddMore: () => void;
+  hasReviewed: boolean;
+  onReviewClick: () => void;
 }) {
   const statusLabel =
     commitment.status === 'confirmed'
       ? 'Confirmado'
       : commitment.status === 'cancelled'
-      ? 'Cancelado'
-      : 'Pendiente';
+        ? 'Cancelado'
+        : commitment.status === 'delivered'
+          ? 'Entregado'
+          : 'Pendiente';
 
   const statusColor =
     commitment.status === 'confirmed'
       ? 'text-status-confirmed bg-status-confirmed/10'
       : commitment.status === 'cancelled'
-      ? 'text-status-cancelled bg-status-cancelled/10'
-      : 'text-status-urgent bg-status-urgent/10';
+        ? 'text-status-cancelled bg-status-cancelled/10'
+        : 'text-status-urgent bg-status-urgent/10';
 
   const canAddMore = group.status === 'open' && group.remainingUnits > 0;
 
@@ -194,6 +202,19 @@ function AlreadyJoined({
           Agregar más unidades
         </Button>
       )}
+      {commitment.status === 'delivered' && (
+        <div className="w-full">
+          {hasReviewed ? (
+            <div className="text-center py-2 bg-status-confirmed/10 text-status-confirmed font-display text-xs font-bold rounded-xl">
+              ✓ Compra valorada
+            </div>
+          ) : (
+            <Button variant="primary" size="lg" fullWidth onClick={onReviewClick}>
+              Calificar Proveedor
+            </Button>
+          )}
+        </div>
+      )}
       <Link
         to="/mi-cuenta"
         className="text-xs font-body font-medium text-brand-teal hover:underline text-center"
@@ -211,9 +232,11 @@ interface CTAProps {
   commitment: UserCommitment | null;
   onJoin: () => void;
   onOpenAuth: () => void;
+  hasReviewed: boolean;
+  onReviewClick: () => void;
 }
 
-function CTADesktop({ group, commitment, onJoin, onOpenAuth }: CTAProps) {
+function CTADesktop({ group, commitment, onJoin, onOpenAuth, hasReviewed, onReviewClick }: CTAProps) {
   const { user, isAuthenticated } = useAuth();
   const isOpen = group.status === 'open';
 
@@ -250,7 +273,7 @@ function CTADesktop({ group, commitment, onJoin, onOpenAuth }: CTAProps) {
 
   // Buyer already joined
   if (commitment) {
-    return <AlreadyJoined commitment={commitment} group={group} onAddMore={onJoin} />;
+    return <AlreadyJoined commitment={commitment} group={group} onAddMore={onJoin} hasReviewed={hasReviewed} onReviewClick={onReviewClick} />;
   }
 
   // Buyer — join
@@ -261,7 +284,7 @@ function CTADesktop({ group, commitment, onJoin, onOpenAuth }: CTAProps) {
   );
 }
 
-function CTAMobile({ group, commitment, onJoin, onOpenAuth }: CTAProps) {
+function CTAMobile({ group, commitment, onJoin, onOpenAuth, hasReviewed, onReviewClick }: CTAProps) {
   const { user, isAuthenticated } = useAuth();
   const isOpen = group.status === 'open';
 
@@ -288,6 +311,11 @@ function CTAMobile({ group, commitment, onJoin, onOpenAuth }: CTAProps) {
             {isOpen && group.remainingUnits > 0 && (
               <Button variant="secondary" size="sm" onClick={onJoin}>
                 + Unidades
+              </Button>
+            )}
+            {commitment.status === 'delivered' && !hasReviewed && (
+              <Button variant="primary" size="sm" onClick={onReviewClick}>
+                Calificar
               </Button>
             )}
             <Link
@@ -333,9 +361,11 @@ interface RightPanelProps {
   commitment: UserCommitment | null;
   onJoin: () => void;
   onOpenAuth: () => void;
+  hasReviewed: boolean;
+  onReviewClick: () => void;
 }
 
-function RightPanel({ group, commitment, onJoin, onOpenAuth }: RightPanelProps) {
+function RightPanel({ group, commitment, onJoin, onOpenAuth, hasReviewed, onReviewClick }: RightPanelProps) {
   const progressColor = group.progressPercent >= 80 ? 'text-status-urgent' : 'text-brand-teal';
 
   return (
@@ -385,12 +415,23 @@ function RightPanel({ group, commitment, onJoin, onOpenAuth }: RightPanelProps) 
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-surface-card border border-ink-faint/30 rounded-xl p-4 flex flex-col gap-1">
-          <span className="font-display font-semibold text-xs text-ink-muted uppercase tracking-widest">
-            Finaliza en
-          </span>
-          <CountdownTimer expiresAt={group.expiresAt} />
-        </div>
+        {group.status !== 'confirmed' ? (
+          <div className="bg-surface-card border border-ink-faint/30 rounded-xl p-4 flex flex-col gap-1">
+            <span className="font-display font-semibold text-xs text-ink-muted uppercase tracking-widest">
+              Finaliza en
+            </span>
+            <CountdownTimer expiresAt={group.expiresAt} />
+          </div>
+        ) : (
+          <div className="bg-surface-card border border-ink-faint/30 rounded-xl p-4 flex flex-col gap-1">
+            <span className="font-display font-semibold text-xs text-ink-muted uppercase tracking-widest">
+              Estado
+            </span>
+            <span className="font-display font-bold text-sm text-status-confirmed mt-1">
+              Confirmado
+            </span>
+          </div>
+        )}
         <div className="bg-surface-card border border-ink-faint/30 rounded-xl p-4 flex flex-col gap-2">
           <span className="font-display font-semibold text-xs text-ink-muted uppercase tracking-widest">
             Miembros activos
@@ -404,7 +445,7 @@ function RightPanel({ group, commitment, onJoin, onOpenAuth }: RightPanelProps) 
 
       {/* CTA — hidden on mobile (shown in fixed bottom bar instead) */}
       <div className="hidden lg:flex flex-col gap-3">
-        <CTADesktop group={group} commitment={commitment} onJoin={onJoin} onOpenAuth={onOpenAuth} />
+        <CTADesktop group={group} commitment={commitment} onJoin={onJoin} onOpenAuth={onOpenAuth} hasReviewed={hasReviewed} onReviewClick={onReviewClick} />
         <div className="flex justify-center gap-6">
           <span className="font-body text-xs text-ink-muted">🔒 PAGO SEGURO</span>
           <span className="font-body text-xs text-ink-muted">🚚 ENVÍO A REGIONES</span>
@@ -427,6 +468,9 @@ export default function GroupDetailPage() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [commitment, setCommitment] = useState<UserCommitment | null>(null);
   const [updatingAdhesionId, setUpdatingAdhesionId] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewedOpportunityIds, setReviewedOpportunityIds] = useState<Set<string>>(new Set());
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
   async function handleStatusUpdate(adhesionId: string, status: string) {
     setUpdatingAdhesionId(adhesionId);
@@ -460,7 +504,9 @@ export default function GroupDetailPage() {
         const totalAmount = active.reduce((sum, a) => sum + a.totalAmount, 0);
         const status = active.every((a) => a.status === 'confirmed')
           ? 'confirmed'
-          : 'pending';
+          : active.some((a) => a.status === 'delivered')
+            ? 'delivered'
+            : 'pending';
         const latest = active.reduce((prev, curr) =>
           new Date(curr.createdAt) > new Date(prev.createdAt) ? curr : prev,
         );
@@ -470,6 +516,42 @@ export default function GroupDetailPage() {
         setCommitment(null);
       });
   }, [isAuthenticated, user?.role, group?.id]);
+
+  // Cargamos las reseñas de esta oportunidad y si el usuario ya calificó
+  useEffect(() => {
+    if (!group) return;
+
+    getOpportunityReviews(group.id)
+      .then((data) => setReviews(data))
+      .catch((err) => console.error('Error fetching reviews:', err));
+  }, [group?.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'buyer') {
+      setReviewedOpportunityIds(new Set());
+      return;
+    }
+
+    getUserReviews(user.id)
+      .then((userReviews) => {
+        setReviewedOpportunityIds(new Set(userReviews.map((r) => r.opportunityId)));
+      })
+      .catch((err) => console.error('Error fetching user reviews:', err));
+  }, [isAuthenticated, user?.id]);
+
+  function handleReviewSuccess() {
+    if (group) {
+      setReviewedOpportunityIds((prev) => {
+        const next = new Set(prev);
+        next.add(group.id);
+        return next;
+      });
+      // Volver a cargar reviews
+      getOpportunityReviews(group.id)
+        .then((data) => setReviews(data))
+        .catch((err) => console.error('Error fetching reviews:', err));
+    }
+  }
 
   useEffect(() => {
     if (group) {
@@ -550,17 +632,26 @@ export default function GroupDetailPage() {
                 <SupplierCard
                   title={group.supplier?.companyName ?? group.supplier?.name ?? 'Proveedor'}
                   body={`Origen: ${group.supplierOrigin}`}
+                  supplierId={group.supplierId}
                   footer={
-                    group.supplierCatalogUrl ? (
-                      <a
-                        href={group.supplierCatalogUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-display font-bold text-xs text-brand-teal hover:underline tracking-widest uppercase"
+                    <div className="flex flex-col gap-2">
+                      <Link
+                        to={`/proveedor/perfil/${group.supplierId}`}
+                        className="font-display font-bold text-xs text-brand-purple hover:underline tracking-widest uppercase block"
                       >
-                        Ver catálogo completo →
-                      </a>
-                    ) : null
+                        Ver perfil del proveedor
+                      </Link>
+                      {group.supplierCatalogUrl && (
+                        <a
+                          href={group.supplierCatalogUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-display font-bold text-xs text-brand-teal hover:underline tracking-widest uppercase block"
+                        >
+                          Ver catálogo completo →
+                        </a>
+                      )}
+                    </div>
                   }
                 />
                 <SupplierCard
@@ -583,6 +674,9 @@ export default function GroupDetailPage() {
                 />
               </div>
             </section>
+
+            {/* Reviews list */}
+            <OpportunityReviews reviews={reviews} />
 
             {/* Supplier Order Management */}
             {user?.role === 'supplier' && group.supplierId === user.id && group.status === 'confirmed' && (
@@ -618,6 +712,8 @@ export default function GroupDetailPage() {
               commitment={commitment}
               onJoin={() => setJoinModalOpen(true)}
               onOpenAuth={() => setAuthModalOpen(true)}
+              hasReviewed={reviewedOpportunityIds.has(group.id)}
+              onReviewClick={() => setReviewModalOpen(true)}
             />
           </div>
         </div>
@@ -629,6 +725,8 @@ export default function GroupDetailPage() {
         commitment={commitment}
         onJoin={() => setJoinModalOpen(true)}
         onOpenAuth={() => setAuthModalOpen(true)}
+        hasReviewed={reviewedOpportunityIds.has(group.id)}
+        onReviewClick={() => setReviewModalOpen(true)}
       />
 
       {/* ── Auth modal (guests) ───────────────────────────────────────────── */}
@@ -646,6 +744,17 @@ export default function GroupDetailPage() {
         existingQuantity={commitment?.quantity}
         onSuccess={refetch}
       />
+
+      {/* ── Review modal (buyers) ─────────────────────────────────────────── */}
+      {reviewModalOpen && (
+        <ReviewModal
+          isOpen={reviewModalOpen}
+          onClose={() => setReviewModalOpen(false)}
+          opportunityId={group.id}
+          opportunityTitle={group.title}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
     </>
   );
 }
@@ -665,12 +774,24 @@ interface SupplierCardProps {
   title: string;
   body: string;
   footer?: React.ReactNode;
+  supplierId?: string;
 }
 
-function SupplierCard({ title, body, footer }: SupplierCardProps) {
+function SupplierCard({ title, body, footer, supplierId }: SupplierCardProps) {
   return (
     <div className="bg-surface border border-ink-faint/30 rounded-2xl p-4 flex flex-col gap-3">
-      <p className="font-display font-bold text-ink text-sm">{title}</p>
+      <div>
+        {supplierId ? (
+          <Link
+            to={`/proveedor/perfil/${supplierId}`}
+            className="font-display font-bold text-ink text-sm hover:text-brand-purple hover:underline transition-colors"
+          >
+            {title}
+          </Link>
+        ) : (
+          <p className="font-display font-bold text-ink text-sm">{title}</p>
+        )}
+      </div>
       <p className="font-body text-xs text-ink-muted leading-relaxed flex-1">{body}</p>
       {footer && <div>{footer}</div>}
     </div>
@@ -704,7 +825,7 @@ function SupplierAdhesionCard({
     delivered: 'text-brand-teal bg-brand-teal/10 border-brand-teal/20',
   };
 
-  const canUpdate = adhesion.status !== 'cancelled' && adhesion.status !== 'pending';
+  const canUpdate = adhesion.status !== 'cancelled' && adhesion.status !== 'pending' && adhesion.status !== 'delivered';
 
   return (
     <div className="bg-white border border-ink-faint/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -716,6 +837,11 @@ function SupplierAdhesionCard({
           <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${statusColors[adhesion.status] || ''}`}>
             {statusLabels[adhesion.status] || adhesion.status}
           </span>
+          {adhesion.status === 'delivered' && (
+            <span className="text-[10px] font-body text-ink-muted bg-ink-faint/25 px-1.5 py-0.5 rounded flex items-center gap-1">
+              🔒 Cerrado
+            </span>
+          )}
         </div>
         <p className="font-body text-xs text-ink-muted">
           Contacto: <span className="text-ink">{adhesion.user?.email}</span>
@@ -743,5 +869,54 @@ function SupplierAdhesionCard({
         </div>
       )}
     </div>
+  );
+}
+
+function OpportunityReviews({ reviews }: { reviews: Review[] }) {
+  if (reviews.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-4 border-t border-ink-faint/30 pt-6">
+      <h2 className="font-display font-bold text-xs text-ink-muted uppercase tracking-widest">
+        Valoraciones de compradores ({reviews.length})
+      </h2>
+      <div className="flex flex-col gap-3">
+        {reviews.map((rev) => (
+          <div key={rev.id} className="bg-surface border border-ink-faint/30 rounded-2xl p-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-brand-purple/10 text-brand-purple font-display font-bold text-xs flex items-center justify-center">
+                  {rev.author?.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div>
+                  <p className="font-display font-bold text-xs text-ink">
+                    {rev.author?.storeName || rev.author?.name || 'Comprador'}
+                  </p>
+                  <p className="text-[10px] font-body text-ink-muted">
+                    {new Date(rev.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span
+                    key={star}
+                    className={`text-sm ${star <= rev.rating ? 'text-yellow-400' : 'text-ink-faint'
+                      }`}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+            </div>
+            {rev.comment && (
+              <p className="font-body text-xs text-ink leading-relaxed pl-1">
+                {rev.comment}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
